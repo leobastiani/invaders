@@ -13,7 +13,8 @@ use crossterm::{
     ExecutableCommand,
 };
 use invaders::{
-    frame::{self, new_frame},
+    frame::{self, new_frame, Drawable},
+    player::Player,
     render::render,
 };
 use rusty_audio::Audio;
@@ -53,12 +54,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     });
 
+    let mut player = Player::new();
     'gameloop: loop {
-        let curr_frame = new_frame();
-
         while event::poll(Duration::default())? {
             if let event::Event::Key(key_event) = event::read()? {
                 match key_event.code {
+                    KeyCode::Left => player.move_left(),
+                    KeyCode::Right => player.move_right(),
                     KeyCode::Esc | KeyCode::Char('q') => {
                         audio.play("lose");
                         break 'gameloop;
@@ -68,7 +70,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
         }
 
-        let _ = render_tx.send(curr_frame);
+        let mut frame = new_frame();
+        player.draw(&mut frame);
+        let _ = render_tx.send(frame);
         thread::sleep(Duration::from_millis(1));
     }
     drop(render_tx);
