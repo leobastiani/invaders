@@ -3,7 +3,7 @@ use std::{
     io::{self, stdout},
     sync::mpsc,
     thread,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use crossterm::{
@@ -55,12 +55,21 @@ fn main() -> Result<(), Box<dyn Error>> {
     });
 
     let mut player = Player::new();
+    let mut instant = Instant::now();
     'gameloop: loop {
+        let delta = instant.elapsed();
+        instant = Instant::now();
+
         while event::poll(Duration::default())? {
             if let event::Event::Key(key_event) = event::read()? {
                 match key_event.code {
                     KeyCode::Left => player.move_left(),
                     KeyCode::Right => player.move_right(),
+                    KeyCode::Char(' ') => {
+                        if player.shoot() {
+                            audio.play("pew");
+                        }
+                    }
                     KeyCode::Esc | KeyCode::Char('q') => {
                         audio.play("lose");
                         break 'gameloop;
@@ -70,6 +79,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
         }
 
+        player.update(delta);
         let mut frame = new_frame();
         player.draw(&mut frame);
         let _ = render_tx.send(frame);
